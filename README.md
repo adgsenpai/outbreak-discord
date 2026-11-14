@@ -1,123 +1,122 @@
-# Real game artwork edition — important
+# Outbreak Discord Rich Presence
 
-This edition **removes the ten AI-generated stage images**. The two original PlayStation 2 covers supplied by the user are still included as `assets/outbreak_file1.png` and `assets/outbreak_file2.png`.
+Discord Rich Presence for **Resident Evil Outbreak File #1 and File #2** played in the browser at [outbreakweb.com](https://outbreakweb.com). A Chrome extension reads which stage you're in, and a small local companion sends it to your Discord desktop app, with stage artwork, your character and current room.
 
-**Actual stage screenshots are NOT bundled.** The environment could locate galleries, but could not retrieve and verify ten source image files. Rather than misrepresent generated artwork as authentic screenshots, this package includes an importer for genuine screenshots you save from the game or authorized galleries.
+<p>
+  <img src="docs/screenshots/decisions_decisions.png" alt="Discord status: Resident Evil Outbreak — Decisions, Decisions · Kevin, Waiting room" width="420">
+  <img src="docs/screenshots/hellfire.png" alt="Discord status: Resident Evil Outbreak — Hellfire · Kevin, Apple Inn square" width="420">
+</p>
 
-## Where to find real screenshots
+When you're in the menus or between stages, it falls back to the game cover:
 
-- Resident Evil Wiki gallery: https://residentevil.fandom.com/wiki/Resident_Evil_Outbreak/gallery
-- Scenario reference pages: https://outbreakweb.org/scenarios/
-- File 1 full playthrough: https://www.youtube.com/watch?v=Iu3c1j7cyKc
-- File 2 full playthrough: https://www.youtube.com/watch?v=f8B5E7lYfxY
+<img src="docs/screenshots/menu_fallback.png" alt="Discord status: Resident Evil Outbreak — Resident Evil Outbreak: File #1, Playing in Chrome" width="420">
 
-For the cleanest real artwork, capture each scenario's in-game title card or a representative scene directly from your browser gameplay. Only use material you're allowed to redistribute.
+## Features
 
-## Install actual stage screenshots
+- **Automatic stage detection** for all ten scenarios, read from the game's own scenario ID (no guessing from room names).
+- **Stage artwork** for every scenario, plus File #1 / File #2 covers.
+- Shows **character** and **current room**, and a "Play Outbreak File #N" button.
+- Keeps your status while the game tab is open, even when Chrome isn't the focused window.
+- Linux companion that can run as a **systemd user service** and start on login.
+- Talks only to `127.0.0.1`, authenticated with a pairing token.
 
-1. Save your ten genuine screenshots to `assets/real_stage_images/`, naming them:
+## How it works
 
-   `outbreak`, `below_freezing_point`, `the_hive`, `hellfire`, `decisions_decisions`, `wild_things`, `underbelly`, `flashback`, `desperate_times`, `end_of_the_road`.
-
-   Use `.png`, `.jpg`, `.jpeg` or `.webp` extensions.
-
-   Alternatively, if you have the 3/3/3/1 title-card grid image (774×754 layout), split it automatically:
-
-   ```bash
-   python3 crop_stage_grid.py assets/real_stage_images/stage_grid.jpeg
-   ```
-2. Run:
-
-```bash
-python3 -m pip install -r requirements-artwork.txt
-python3 import_real_stage_art.py
+```
+outbreakweb.com tab ──► Chrome extension ──► local companion (127.0.0.1:8766) ──► Discord desktop (IPC)
+   page-bridge.js         content.js /           companion/server.py
+   (reads scen + room)    background.js          + stages.py (scen → stage)
 ```
 
-3. Upload the resulting `assets/*.png` to Discord Developer Portal under matching asset keys. Until you add the stage screenshots, stage artwork will not render; the real game covers remain available.
+1. `extension/page-bridge.js` runs in the page and calls the site's own read-only tracker reader (`trkRead()`) every 2 seconds. It gets the **scenario ID** and your **room**. This works whether or not the site's tracker panel is visible.
+2. `extension/content.js` adds the character name and room label from the tracker cards. `extension/background.js` posts everything to the companion about every 30 seconds.
+3. `companion/server.py` maps the scenario ID to a stage and updates your Discord presence through pypresence. If nothing arrives for 75 seconds, it clears the presence.
 
-## Companion and Chrome extension
+### Scenario IDs
 
-# Outbreak Discord Presence v6 — Linux + Chrome
+The game's scenario ID is the stage's data-archive number on the disc (`rNNN.afs`). The table comes from the [Resident Evil Wiki scenario table](https://residentevil.fandom.com/wiki/Network_Biohazard). The ✓ rows were confirmed in-game.
 
-Supports Resident Evil Outbreak File #1 and File #2 with **10 original AI-generated stage illustrations** (one per scenario), plus two authentic game cover images supplied by the user. The 10 stage illustrations are atmospheric interpretations, NOT official game screenshots.
+| File | ID | Stage | Discord asset key |
+|---|---|---|---|
+| #1 | 1 | Outbreak | `outbreak_hd` |
+| #1 | 2 | Hellfire ✓ | `hellfire_hd` |
+| #1 | 28 | The Hive ✓ | `the_hive_hd` |
+| #1 | 35 | Below Freezing Point | `below_freezing_point_hd` |
+| #1 | 41 | Decisions, Decisions ✓ | `decisions_decisions_hd` |
+| #2 | 10 | Underbelly | `underbelly_hd` |
+| #2 | 15 | Desperate Times | `desperate_times_hd` |
+| #2 | 26 | Flashback | `flashback_hd` |
+| #2 | 40 | Wild Things | `wild_things_hd` |
+| #2 | any other | End of the Road | `end_of_the_road_hd` |
+| #1 | not detected | File #1 cover | `outbreak_file1` |
+| #2 | not detected | File #2 cover | `outbreak_file2` |
 
-## Stage artwork keys (upload all PNG files in assets/)
+The wiki doesn't document End of the Road's ID. File #2 has only five scenarios, so any other File #2 ID is treated as End of the Road. If a stage ever shows the wrong art, look for `scen=N` in the companion log and fix `SCENARIO_IDS` in `companion/stages.py`.
 
-| Game | Scenario | Discord asset key |
-|---|---|---|
-| file1 | Outbreak | `outbreak` |
-| file1 | Below Freezing Point | `below_freezing_point` |
-| file1 | The Hive | `the_hive` |
-| file1 | Hellfire | `hellfire` |
-| file1 | Decisions, Decisions | `decisions_decisions` |
-| file2 | Wild Things | `wild_things` |
-| file2 | Underbelly | `underbelly` |
-| file2 | Flashback | `flashback` |
-| file2 | Desperate Times | `desperate_times` |
-| file2 | End of the Road | `end_of_the_road` |
-| File 1 | Default cover | `outbreak_file1` |
-| File 2 | Default cover | `outbreak_file2` |
+## Setup (Linux + Chrome)
 
-**Cover artwork update (v6):** `assets/outbreak_file1.png` and `assets/outbreak_file2.png` are converted directly from the two real PlayStation 2 cover images supplied by the user. They are no longer duplicates of the Outbreak / Wild Things stage illustrations. The other 10 images remain generated stage artwork.
+### 1. Discord application
 
-**Important:** Discord cannot use local PNG paths as Rich Presence artwork. Upload all 12 PNGs manually to the **same Discord Developer application**, under Rich Presence / Art Assets. If your application has an asset limit, upload only the stages you want or use a separate application. The title at the top of Discord is the Discord application's name; the details identify File 1 vs File 2.
+1. Create an application at <https://discord.com/developers/applications>. Its name is the title shown in Discord, e.g. "Resident Evil Outbreak". Copy the **Application ID**.
+2. Under **Rich Presence → Art Assets**, upload every file in `assets/discord_upload_hd/` (stage art) and `outbreak_file1.png` / `outbreak_file2.png` from `assets/discord_upload/` (covers). Each filename (without extension) becomes the asset key. Upload a few files at a time; large batches can hang the portal.
 
-## Setup
-
-1. Create a Discord application at https://discord.com/developers/applications and copy its numeric Application ID.
-2. In `outbreak-discord/companion`:
+### 2. Companion
 
 ```bash
+cd companion
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python server.py --app-id YOUR_APPLICATION_ID
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python server.py --app-id YOUR_APPLICATION_ID
 ```
 
-3. Copy the pairing token printed by the server. Keep the terminal running and Discord Desktop open.
-4. In Chrome go to `chrome://extensions`, enable Developer mode, **Load unpacked**, choose `outbreak-discord/extension`.
-5. Click the extension icon, paste the token, and Save. Enable room sharing only if desired.
-6. Open https://outbreakweb.com/file1/ or https://outbreakweb.com/file2/ and keep the tab open (it does not need to be focused). Turn on the website's Tracker panel display so it populates `#trk-panel`.
+It prints a **pairing token**; the app ID and token are saved in `~/.config/outbreak-discord/config.json`. Keep Discord desktop running.
 
-## How live stage detection works
+**Start on login (optional):**
 
-**Primary signal — scenario ID.** `extension/page-bridge.js` runs in the page's own JS world and calls the site's read-only `trkRead()` every 2 s (falling back to `window.trkLastState`). It forwards the game's internal scenario number (`scen`) and your room number to the extension, so detection works even when the tracker panel/overlay is hidden. The companion maps `scen` to a stage via `SCENARIO_IDS` in `companion/stages.py`.
+```bash
+mkdir -p ~/.config/systemd/user
+sed "s#REPLACE_WITH_ABSOLUTE_PROJECT_PATH#$PWD/..#g" outbreak-discord.service > ~/.config/systemd/user/outbreak-discord.service
+systemctl --user daemon-reload
+systemctl --user enable --now outbreak-discord
+```
 
-The IDs are the scenarios' data-archive numbers (`rNNN`), taken from the [Resident Evil Wiki scenario table](https://residentevil.fandom.com/wiki/Network_Biohazard) and confirmed in-game for The Hive (28) and Decisions, Decisions (41):
+View its log with `journalctl --user -u outbreak-discord -f`.
 
-| File | ID | Stage |
-|---|---|---|
-| #1 | 1 | Outbreak |
-| #1 | 2 | Hellfire |
-| #1 | 28 | The Hive |
-| #1 | 35 | Below Freezing Point |
-| #1 | 41 | Decisions, Decisions |
-| #2 | 10 | Underbelly |
-| #2 | 15 | Desperate Times |
-| #2 | 26 | Flashback |
-| #2 | 40 | Wild Things |
-| #2 | any other | End of the Road (ID not documented; File #2 has only five scenarios) |
+### 3. Chrome extension
 
-If a stage is ever wrong, check `scen=N` in the companion log (`journalctl --user -u outbreak-discord -f`) and fix `SCENARIO_IDS`.
+1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and choose the `extension/` folder.
+2. Click the extension icon, paste the pairing token, then click **Save & connect**. It should show 🟢 Connected.
+3. Open <https://outbreakweb.com/file1/> or <https://outbreakweb.com/file2/> and play.
 
-**Fallback — room text.** The extension also reads `.trk-card .trk-room` from `#trk-panel` or the in-game overlay `#trk-ov` and matches distinctive names via `HINTS`. The site omits room labels on higher difficulties and shows `Room N` for unnamed rooms, so this is only a fallback; unknown stages show the default File 1/2 cover rather than guessing.
+## Stage artwork
 
-**Artwork keys.** The presence uses `<stage>_hd` asset keys (full-frame 1024×1024 JPEGs in `assets/discord_upload_hd/`). Upload those files with their filenames as keys. The covers stay `outbreak_file1` / `outbreak_file2`.
+The ten stage images are cropped from a fan-made grid of the in-game scenario title cards.
 
-Presence stays on while any Outbreak tab is open, even when Chrome isn't the focused window.
+- `crop_stage_grid.py` splits that 3/3/3/1 grid into `assets/real_stage_images/<stage>.png`.
+- `import_real_stage_art.py` turns any screenshots in `assets/real_stage_images/` into 1024×1024 Discord art. Each image is scaled up to the full width and the empty space is filled with a blurred backdrop.
 
-The first tracker card is displayed as the character; it may be a teammate, not your controlled character. The match timer shown in the site is not used as Discord's elapsed timer; Discord displays the session start time. Browser updates run about every 30 seconds, with a 75-second stale timeout.
+```bash
+companion/.venv/bin/python crop_stage_grid.py assets/real_stage_images/stage_grid.jpeg
+companion/.venv/bin/python import_real_stage_art.py
+```
+
+To use your own screenshots, save them as `assets/real_stage_images/<stage>.png` (or `.jpg`/`.webp`), using the stage keys from the table above without `_hd`. Then run the importer.
 
 ## Troubleshooting
 
-- If Discord activity is missing, check Discord's Activity Privacy settings, confirm Discord Desktop is running, and look at Python logs. Flatpak/Snap Discord may not expose the IPC socket to the companion.
-- If images are missing, check that the Discord asset keys exactly match the PNG filename stems and wait for Discord asset propagation.
-- If you changed versions, reload the unpacked Chrome extension and restart the Python companion.
-- If the stage is unknown, add its distinctive tracker room name to `companion/stages.py`. Do not map numeric `Area 01` to a scenario: that number is not sufficient evidence.
-- Keep the pairing token private. The server listens only on `127.0.0.1:8766`.
-- `assets/discord_upload/` holds the exact 1024×1024 files uploaded to Discord (covers padded to square, since Discord requires at least 512×512).
-- To run the companion at login, copy `companion/outbreak-discord.service` to `~/.config/systemd/user/`, replace the path placeholder, then `systemctl --user enable --now outbreak-discord`.
+- **No activity in Discord.** Check that Discord desktop is running, that **Settings → Activity Privacy → Share your activity** is on, and the companion log. Snap/Flatpak Discord is supported (the IPC socket under `$XDG_RUNTIME_DIR/snap.discord/` is found automatically).
+- **Popup shows 🔴 Disconnected.** The companion isn't running or the token doesn't match. Run `systemctl --user status outbreak-discord` and re-paste the token.
+- **Port 8766 is in use.** Change `PORT` in `companion/server.py` and the two `127.0.0.1:8766` URLs in `extension/background.js` and `extension/manifest.json`, then reload the extension.
+- **Cover instead of stage art.** You're in a menu or lobby, or the scenario ID is unmapped. Check `scen=` in the log.
+- **Art not updating after re-uploading.** Discord caches assets by key, so upload changed art under a new key rather than replacing an existing one.
+- **After changing extension files.** Reload the extension at `chrome://extensions`, then reload the game tab.
 
 ## Privacy
 
-All data stays between the Outbreak tab and the local companion, except what you explicitly publish through Discord Rich Presence. The extension never reads game memory, transfer codes, or inventory icons. Room sharing is opt-in and disabled by default. The code is provided as-is, without live integration verification.
+- The extension only runs on `outbreakweb.com/file1` and `/file2`. It reads the scenario ID, room number, character name and room label through the site's own tracker, and sends them only to the companion on `127.0.0.1`.
+- Showing your online lobby room name is opt-in in the popup and off by default.
+- Only what appears in your Discord status leaves your machine.
+
+## Credits
+
+Resident Evil Outbreak and all game artwork © CAPCOM. This is an unofficial fan project; it isn't affiliated with Capcom, Discord or outbreakweb.com. Scenario IDs come from the [Resident Evil Wiki](https://residentevil.fandom.com/wiki/Network_Biohazard) (CC-BY-SA).

@@ -38,7 +38,7 @@ HINTS = {
 SCENARIO_IDS = {
     'file1': {
         1: 'outbreak',               # r001
-        2: 'hellfire',               # r002
+        2: 'hellfire',               # r002 — confirmed in-game 2026-11-15
         28: 'the_hive',              # r028 — confirmed in-game 2026-11-15
         35: 'below_freezing_point',  # r035
         41: 'decisions_decisions',   # r041 — confirmed in-game 2026-11-15
