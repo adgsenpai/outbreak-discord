@@ -46,12 +46,12 @@ The game's scenario ID is the stage's data-archive number on the disc (`rNNN.afs
 | #2 | 10 | Underbelly | `underbelly_hd` |
 | #2 | 15 | Desperate Times | `desperate_times_hd` |
 | #2 | 26 | Flashback | `flashback_hd` |
-| #2 | 40 | Wild Things | `wild_things_hd` |
-| #2 | any other | End of the Road | `end_of_the_road_hd` |
+| #2 | 40 | Wild Things ✓ | `wild_things_hd` |
+| #2 | 6 | End of the Road ✓ | `end_of_the_road_hd` |
 | #1 | not detected | File #1 cover | `outbreak_file1` |
 | #2 | not detected | File #2 cover | `outbreak_file2` |
 
-The wiki doesn't document End of the Road's ID. File #2 has only five scenarios, so any other File #2 ID is treated as End of the Road. If a stage ever shows the wrong art, look for `scen=N` in the companion log and fix `SCENARIO_IDS` in `companion/stages.py`.
+End of the Road (6) isn't in the wiki table; it was confirmed in-game. As a safety net, any other File #2 ID is also treated as End of the Road, since File #2 has only five scenarios. If a stage ever shows the wrong art, look for `scen=N` in the companion log and fix `SCENARIO_IDS` in `companion/stages.py`.
 
 ## Setup (Linux + Chrome)
 

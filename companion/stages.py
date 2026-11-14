@@ -47,7 +47,8 @@ SCENARIO_IDS = {
         10: 'underbelly',            # r010
         15: 'desperate_times',       # r015
         26: 'flashback',             # r026
-        40: 'wild_things',           # r040
+        40: 'wild_things',           # r040 — confirmed in-game 2026-11-15
+        6: 'end_of_the_road',        # r006 — confirmed in-game 2026-11-15 (not in the wiki table)
     },
 }
 # File #2 has exactly five scenarios. The wiki doesn't list End of the Road's ID, so any other
