@@ -7,7 +7,12 @@ async function sync() {
   try {
     const {enabled=true, token='', username='', shareRoom=false} = await chrome.storage.local.get(['enabled','token','username','shareRoom']);
     const windows = await chrome.windows.getAll({populate:true});
-    const tab = windows.filter(w=>w.focused).flatMap(w=>w.tabs||[]).find(t=>t.active && TARGET.test(t.url||''));
+    // Keep presence while an Outbreak tab is open, even when Chrome isn't the focused app
+    // (e.g. while you're looking at Discord). Prefer the focused window's active tab, then any
+    // active Outbreak tab, then any Outbreak tab at all.
+    const isGame = t => TARGET.test(t.url||'');
+    const all = windows.flatMap(w=>(w.tabs||[]).map(t=>({t, focused:w.focused})));
+    const tab = (all.find(x=>x.focused && x.t.active && isGame(x.t)) || all.find(x=>x.t.active && isGame(x.t)) || all.find(x=>isGame(x.t)))?.t;
     const playing = Boolean(enabled && tab);
     const game = playing ? tab.url.match(TARGET)[1] : null;
     let room=null, tracker=null;

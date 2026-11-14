@@ -28,9 +28,21 @@ HINTS = {
   'end_of_the_road': ('umbrella research facility', 'chemical plant'),
  }
 }
-def identify(game, location, override=None):
+# The site's tracker exposes the game's internal scenario number (window.trkLastState.scen).
+# This is the most reliable signal; add each id once it has been confirmed in the companion log
+# ("scen=N") while playing a known stage.
+SCENARIO_IDS = {
+    'file1': {
+        28: 'the_hive',  # confirmed 2026-11-15 in-game
+    },
+    'file2': {},
+}
+
+def identify(game, location, override=None, scen=None):
     if override and override in STAGES.get(game, {}):
         return override
+    if scen is not None and scen in SCENARIO_IDS.get(game, {}):
+        return SCENARIO_IDS[game][scen]
     loc = (location or '').casefold()
     matches = [key for key, hints in HINTS.get(game, {}).items() if any(h in loc for h in hints)]
     return matches[0] if len(matches) == 1 else None

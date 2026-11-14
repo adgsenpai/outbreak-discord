@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Outbreak Discord Rich Presence",
-  "version": "4.0.0",
+  "version": "4.2.0",
   "description": "Outbreak File 1/2 Discord presence with all ten original stage artworks and live tracker.",
   "permissions": [
     "tabs",
@@ -23,6 +23,17 @@
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://outbreakweb.com/file1/*",
+        "https://outbreakweb.com/file2/*"
+      ],
+      "js": [
+        "page-bridge.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "background": {

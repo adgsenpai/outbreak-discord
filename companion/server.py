@@ -68,7 +68,11 @@ class State:
                             location = chars[0].get('location','') if chars else ''
                             character = chars[0].get('name','') if chars else ''
                             # Confirmed mapping: File 2's Elephant Restaurant belongs to Wild Things.
-                            stage_key = identify(game, location)
+                            scen = (tracker or {}).get('scen')
+                            room_id = (tracker or {}).get('roomId')
+                            stage_key = identify(game, location, scen=scen)
+                            if not location and room_id is not None:
+                                location = f'Room {room_id}'
                             stage = STAGES.get(game, {}).get(stage_key)
                             details = f'{stage} · {character}' if stage and character else (f'Playing as {character}' if character else title)
                             state_text = location or 'Playing in Chrome'
@@ -77,7 +81,9 @@ class State:
                                 state_text = f'{room.get("status", "In room")} · {room.get("players", "?")} players'
                             payload = dict(details=details[:128], state=state_text[:128],start=started,
                                 buttons=[{'label':f'Play Outbreak {which}','url':GAME_URLS.get(game,GAME_URLS['file2'])}])
-                            image_key = stage_key if stage_key else ('outbreak_file1' if game=='file1' else 'outbreak_file2')
+                            # Stage art is uploaded as "<stage>_hd" (full-size versions; the
+                            # original keys held small images and Discord caches assets by key).
+                            image_key = f'{stage_key}_hd' if stage_key else ('outbreak_file1' if game=='file1' else 'outbreak_file2')
                             payload['large_image'] = image_key
                             payload['large_text'] = (stage or title)[:128]
                             if tracker and tracker.get('difficulty'):
@@ -85,7 +91,7 @@ class State:
                             # Optional override for users with a custom cover asset.
                             if self.image and not stage: payload['large_image'] = self.image
                             self.rpc.update(**payload)
-                            print(f"Presence active: {title} | {stage or location or 'unknown stage'}", flush=True)
+                            print(f"Presence active: {title} | {stage or 'unknown stage'} | scen={scen} room={room_id} location={location!r}", flush=True)
                         else:
                             self.rpc.clear()
                             print('Presence cleared', flush=True)
@@ -129,7 +135,8 @@ def make_handler(state):
                     if not isinstance(tracker, dict): raise ValueError("invalid tracker")
                     chars = tracker.get("characters", [])
                     if not isinstance(chars, list): raise ValueError("invalid characters")
-                    tracker = {"characters": [{k: str(c.get(k,""))[:100] for k in ("name","location","health","virus")} for c in chars[:4] if isinstance(c,dict)],"difficulty":str(tracker.get("difficulty",""))[:24],"matchTime":str(tracker.get("matchTime",""))[:30]}
+                    num = lambda v: v if type(v) is int and 0 <= v <= 0xFFFF else None
+                    tracker = {"characters": [{k: str(c.get(k,""))[:100] for k in ("name","location","health","virus")} for c in chars[:4] if isinstance(c,dict)],"difficulty":str(tracker.get("difficulty",""))[:24],"matchTime":str(tracker.get("matchTime",""))[:30],"scen":num(tracker.get("scen")),"roomId":num(tracker.get("roomId"))}
                 if room is not None:
                     if not isinstance(room, dict):
                         raise ValueError('invalid room')

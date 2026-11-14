@@ -77,11 +77,19 @@ python server.py --app-id YOUR_APPLICATION_ID
 3. Copy the pairing token printed by the server. Keep the terminal running and Discord Desktop open.
 4. In Chrome go to `chrome://extensions`, enable Developer mode, **Load unpacked**, choose `outbreak-discord/extension`.
 5. Click the extension icon, paste the token, and Save. Enable room sharing only if desired.
-6. Open https://outbreakweb.com/file1/ or https://outbreakweb.com/file2/ and keep the tab active. Turn on the website's Tracker panel display so it populates `#trk-panel`.
+6. Open https://outbreakweb.com/file1/ or https://outbreakweb.com/file2/ and keep the tab open (it does not need to be focused). Turn on the website's Tracker panel display so it populates `#trk-panel`.
 
 ## How live stage detection works
 
-The extension reads `#trk-panel .trk-card .trk-room` (current in-game room), character, difficulty and timer, and optionally `#rooms` for lobby status. The companion uses conservative room-name hints in `companion/stages.py`. **Not every room in every scenario is mapped**: the 10 artworks are ready, but unrecognized room names show a default File 1/2 image rather than falsely identifying a stage. `In front of Elephant Restaurant` is recognized as Wild Things. Extend `HINTS` with verified tracker location strings to improve coverage.
+**Primary signal — scenario ID.** `extension/page-bridge.js` runs in the page's own JS world and calls the site's read-only `trkRead()` every 2 s (falling back to `window.trkLastState`). It forwards the game's internal scenario number (`scen`) and your room number to the extension, so detection works even when the tracker panel/overlay is hidden. The companion maps `scen` to a stage via `SCENARIO_IDS` in `companion/stages.py`.
+
+Confirmed IDs so far: File #1 `28` = The Hive. To add another stage, play it and look for `scen=N` in the companion log (`journalctl --user -u outbreak-discord -f`), then add `N: '<stage_key>'` under the right file.
+
+**Fallback — room text.** The extension also reads `.trk-card .trk-room` from `#trk-panel` or the in-game overlay `#trk-ov` and matches distinctive names via `HINTS`. The site omits room labels on higher difficulties and shows `Room N` for unnamed rooms, so this is only a fallback; unknown stages show the default File 1/2 cover rather than guessing.
+
+**Artwork keys.** The presence uses `<stage>_hd` asset keys (full-frame 1024×1024 JPEGs in `assets/discord_upload_hd/`). Upload those files with their filenames as keys. The covers stay `outbreak_file1` / `outbreak_file2`.
+
+Presence stays on while any Outbreak tab is open, even when Chrome isn't the focused window.
 
 The first tracker card is displayed as the character; it may be a teammate, not your controlled character. The match timer shown in the site is not used as Discord's elapsed timer; Discord displays the session start time. Browser updates run about every 30 seconds, with a 75-second stale timeout.
 
