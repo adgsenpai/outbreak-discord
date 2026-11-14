@@ -1,0 +1,3 @@
+File 1 and File 2 cover art: user supplied original PS2 cover images.
+Stage art: NOT included. Add genuine gameplay screenshots using import_real_stage_art.py.
+Game artwork © CAPCOM. Only use assets you have permission to use.

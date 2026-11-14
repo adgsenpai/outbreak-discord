@@ -1,0 +1,1 @@
+Put genuine screenshots here named outbreak.png, below_freezing_point.png, the_hive.png, hellfire.png, decisions_decisions.png, wild_things.png, underbelly.png, flashback.png, desperate_times.png, end_of_the_road.png (JPG accepted too). Then run python3 import_real_stage_art.py
