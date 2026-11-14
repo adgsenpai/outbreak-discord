@@ -83,7 +83,22 @@ python server.py --app-id YOUR_APPLICATION_ID
 
 **Primary signal — scenario ID.** `extension/page-bridge.js` runs in the page's own JS world and calls the site's read-only `trkRead()` every 2 s (falling back to `window.trkLastState`). It forwards the game's internal scenario number (`scen`) and your room number to the extension, so detection works even when the tracker panel/overlay is hidden. The companion maps `scen` to a stage via `SCENARIO_IDS` in `companion/stages.py`.
 
-Confirmed IDs so far: File #1 `28` = The Hive. To add another stage, play it and look for `scen=N` in the companion log (`journalctl --user -u outbreak-discord -f`), then add `N: '<stage_key>'` under the right file.
+The IDs are the scenarios' data-archive numbers (`rNNN`), taken from the [Resident Evil Wiki scenario table](https://residentevil.fandom.com/wiki/Network_Biohazard) and confirmed in-game for The Hive (28) and Decisions, Decisions (41):
+
+| File | ID | Stage |
+|---|---|---|
+| #1 | 1 | Outbreak |
+| #1 | 2 | Hellfire |
+| #1 | 28 | The Hive |
+| #1 | 35 | Below Freezing Point |
+| #1 | 41 | Decisions, Decisions |
+| #2 | 10 | Underbelly |
+| #2 | 15 | Desperate Times |
+| #2 | 26 | Flashback |
+| #2 | 40 | Wild Things |
+| #2 | any other | End of the Road (ID not documented; File #2 has only five scenarios) |
+
+If a stage is ever wrong, check `scen=N` in the companion log (`journalctl --user -u outbreak-discord -f`) and fix `SCENARIO_IDS`.
 
 **Fallback — room text.** The extension also reads `.trk-card .trk-room` from `#trk-panel` or the in-game overlay `#trk-ov` and matches distinctive names via `HINTS`. The site omits room labels on higher difficulties and shows `Room N` for unnamed rooms, so this is only a fallback; unknown stages show the default File 1/2 cover rather than guessing.
 
