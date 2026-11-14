@@ -25,6 +25,12 @@ FROZEN = getattr(sys, 'frozen', False)
 WINDOWS = os.name == 'nt'
 
 
+def _copy(src, dst):
+    """Plain chunked copy (shutil.copy2 uses CopyFile2 on Windows, which Wine lacks)."""
+    with open(src, 'rb') as fi, open(dst, 'wb') as fo:
+        shutil.copyfileobj(fi, fo, 1 << 20)
+
+
 def _win_dir():
     return Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local')) / APP
 
@@ -78,7 +84,7 @@ def _install_windows():
     target_dir.mkdir(parents=True, exist_ok=True)
     if Path(sys.executable).resolve() != target.resolve():
         subprocess.run(['taskkill', '/F', '/IM', EXE_NAME], capture_output=True)  # replace an older running copy
-        shutil.copy2(sys.executable, target)
+        _copy(sys.executable, target)
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, APP, 0, winreg.REG_SZ, f'"{target}"')
     flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
@@ -94,14 +100,47 @@ def _uninstall_windows():
             winreg.DeleteValue(key, APP)
     except FileNotFoundError:
         pass
-    me = os.getpid()
-    subprocess.run(['taskkill', '/F', '/IM', EXE_NAME, '/FI', f'PID ne {me}'], capture_output=True)
+    _kill_other_instances()
     target_dir = _win_dir()
     if target_dir.exists():
-        # The running exe can't delete itself; remove the folder a moment after we exit.
-        subprocess.Popen(f'cmd /c timeout /t 2 /nobreak >nul & rmdir /s /q "{target_dir}"',
-                         shell=True, creationflags=0x08000000)  # CREATE_NO_WINDOW
+        try:
+            shutil.rmtree(target_dir)
+        except OSError:
+            # We're running from inside it; remove it a few seconds after we exit.
+            subprocess.Popen(f'cmd /c ping -n 4 127.0.0.1 >nul & rmdir /s /q "{target_dir}"',
+                             shell=True, creationflags=0x08000000)  # CREATE_NO_WINDOW
     _message('Outbreak Discord Rich Presence was uninstalled.')
+
+
+def _kill_other_instances():
+    """Terminate every other OutbreakDiscordCompanion.exe (Toolhelp snapshot; no taskkill filters)."""
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.windll.kernel32
+
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD), ('th32ProcessID', wintypes.DWORD),
+                    ('th32DefaultHeapID', ctypes.c_size_t), ('th32ModuleID', wintypes.DWORD),
+                    ('cntThreads', wintypes.DWORD), ('th32ParentProcessID', wintypes.DWORD),
+                    ('pcPriClassBase', ctypes.c_long), ('dwFlags', wintypes.DWORD), ('szExeFile', ctypes.c_wchar * 260)]
+
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.OpenProcess.restype = wintypes.HANDLE
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    entry = PROCESSENTRY32W(dwSize=ctypes.sizeof(PROCESSENTRY32W))
+    me, pids = os.getpid(), []
+    ok = k32.Process32FirstW(snap, ctypes.byref(entry))
+    while ok:
+        if entry.szExeFile.lower() == EXE_NAME.lower() and entry.th32ProcessID != me:
+            pids.append(entry.th32ProcessID)
+        ok = k32.Process32NextW(snap, ctypes.byref(entry))
+    k32.CloseHandle(snap)
+    for pid in pids:
+        h = k32.OpenProcess(0x0001 | 0x00100000, False, pid)  # PROCESS_TERMINATE | SYNCHRONIZE
+        if h:
+            k32.TerminateProcess(h, 0)
+            k32.WaitForSingleObject(h, 3000)
+            k32.CloseHandle(h)
 
 
 # ---------------------------------------------------------------- Linux
@@ -110,7 +149,7 @@ def _exec_command():
         LINUX_BIN.parent.mkdir(parents=True, exist_ok=True)
         if Path(sys.executable).resolve() != LINUX_BIN.resolve():
             tmp = LINUX_BIN.with_suffix('.new')
-            shutil.copy2(sys.executable, tmp)
+            _copy(sys.executable, tmp)
             os.chmod(tmp, 0o755)
             os.replace(tmp, LINUX_BIN)
         return f'"{LINUX_BIN}"'
