@@ -1,10 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Outbreak Discord Rich Presence",
-  "version": "4.2.0",
-  "description": "Outbreak File 1/2 Discord presence with all ten original stage artworks and live tracker.",
+  "version": "5.0.0",
+  "description": "Show the Resident Evil Outbreak File #1/#2 stage you\u2019re playing on outbreakweb.com as your Discord status, with stage art.",
   "permissions": [
-    "tabs",
     "alarms",
     "storage"
   ],
@@ -41,6 +40,18 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Outbreak Discord Presence"
-  }
+    "default_title": "Outbreak Discord Presence",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "homepage_url": "https://github.com/adgsenpai/outbreak-discord"
 }

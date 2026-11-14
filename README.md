@@ -1,5 +1,7 @@
 # Outbreak Discord Rich Presence
 
+![Outbreak Discord Rich Presence](docs/social-preview.png)
+
 Discord Rich Presence for **Resident Evil Outbreak File #1 and File #2** played in the browser at [outbreakweb.com](https://outbreakweb.com). A Chrome extension reads which stage you're in, and a small local companion sends it to your Discord desktop app, with stage artwork, your character and current room.
 
 <p>
@@ -17,8 +19,8 @@ When you're in the menus or between stages, it falls back to the game cover:
 - **Stage artwork** for every scenario, plus File #1 / File #2 covers.
 - Shows **character** and **current room**, and a "Play Outbreak File #N" button.
 - Keeps your status while the game tab is open, even when Chrome isn't the focused window.
-- Linux companion that can run as a **systemd user service** and start on login.
-- Talks only to `127.0.0.1`, authenticated with a pairing token.
+- **One-click install** on Windows (self-installing `.exe`) and Linux (one-line installer), and it starts automatically at login.
+- Talks only to `127.0.0.1`. The companion accepts requests only from the Chrome extension (or a pairing token).
 
 ## How it works
 
@@ -53,40 +55,46 @@ The game's scenario ID is the stage's data-archive number on the disc (`rNNN.afs
 
 End of the Road (6) isn't in the wiki table; it was confirmed in-game. As a safety net, any other File #2 ID is also treated as End of the Road, since File #2 has only five scenarios. If a stage ever shows the wrong art, look for `scen=N` in the companion log and fix `SCENARIO_IDS` in `companion/stages.py`.
 
-## Setup (Linux + Chrome)
+## Install
 
-### 1. Discord application
+**[⬇ Download the latest release](https://github.com/adgsenpai/outbreak-discord/releases/latest)**
 
-1. Create an application at <https://discord.com/developers/applications>. Its name is the title shown in Discord, e.g. "Resident Evil Outbreak". Copy the **Application ID**.
-2. Under **Rich Presence → Art Assets**, upload every file in `assets/discord_upload_hd/` (stage art) and `outbreak_file1.png` / `outbreak_file2.png` from `assets/discord_upload/` (covers). Each filename (without extension) becomes the asset key. Upload a few files at a time; large batches can hang the portal.
+### 1. Companion app (one click)
 
-### 2. Companion
+| | |
+|---|---|
+| **Windows** | Download **`OutbreakDiscordCompanion.exe`** and double-click it. It installs itself, runs in the background, and starts with Windows. If SmartScreen warns (the app isn't code-signed), click **More info → Run anyway**. |
+| **Linux** (x86_64) | `curl -fsSL https://raw.githubusercontent.com/adgsenpai/outbreak-discord/main/scripts/install.sh \| bash` installs it as a systemd user service that starts at login. |
+
+There's no Discord app to create and no token to paste: the companion uses the public "Resident Evil Outbreak" Discord app, which already has all the artwork.
+
+Uninstall:
+- Windows: `%LOCALAPPDATA%\OutbreakDiscord\OutbreakDiscordCompanion.exe --uninstall`
+- Linux: `~/.local/bin/outbreak-discord-companion --uninstall`
+
+### 2. Chrome extension
+
+Download **`outbreak-discord-extension-v*.zip`** from the release and unzip it. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the unzipped folder. (A Chrome Web Store listing is being prepared.)
+
+### 3. Play
+
+Open <https://outbreakweb.com/file1/> or <https://outbreakweb.com/file2/> with the Discord **desktop** app running.
+
+## Run from source
 
 ```bash
 cd companion
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python server.py --app-id YOUR_APPLICATION_ID
+.venv/bin/python server.py            # run in the foreground
+.venv/bin/python server.py --install  # or: install as a systemd user service
 ```
 
-It prints a **pairing token**; the app ID and token are saved in `~/.config/outbreak-discord/config.json`. Keep Discord desktop running.
+Load the `extension/` folder unpacked as above. Logs go to `journalctl --user -u outbreak-discord -f` when it runs as a service.
 
-**Start on login (optional):**
+**Using your own Discord app (optional).** Create an application at <https://discord.com/developers/applications>. Under **Rich Presence → Art Assets**, upload every file in `assets/discord_upload_hd/` and the two covers from `assets/discord_upload/`, a few at a time. Then start the companion with `--app-id YOUR_APPLICATION_ID`. The app's name is the title Discord shows.
 
-```bash
-mkdir -p ~/.config/systemd/user
-sed "s#REPLACE_WITH_ABSOLUTE_PROJECT_PATH#$PWD/..#g" outbreak-discord.service > ~/.config/systemd/user/outbreak-discord.service
-systemctl --user daemon-reload
-systemctl --user enable --now outbreak-discord
-```
-
-View its log with `journalctl --user -u outbreak-discord -f`.
-
-### 3. Chrome extension
-
-1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and choose the `extension/` folder.
-2. Click the extension icon, paste the pairing token, then click **Save & connect**. It should show 🟢 Connected.
-3. Open <https://outbreakweb.com/file1/> or <https://outbreakweb.com/file2/> and play.
+**Releases.** Pushing a `v*` tag runs `.github/workflows/release.yml`. It builds the Windows `.exe` and Linux binary with PyInstaller, zips the extension and publishes a GitHub Release.
 
 ## Stage artwork
 
@@ -105,13 +113,15 @@ To use your own screenshots, save them as `assets/real_stage_images/<stage>.png`
 ## Troubleshooting
 
 - **No activity in Discord.** Check that Discord desktop is running, that **Settings → Activity Privacy → Share your activity** is on, and the companion log. Snap/Flatpak Discord is supported (the IPC socket under `$XDG_RUNTIME_DIR/snap.discord/` is found automatically).
-- **Popup shows 🔴 Disconnected.** The companion isn't running or the token doesn't match. Run `systemctl --user status outbreak-discord` and re-paste the token.
+- **Popup shows 🔴 Companion not running.** Install or start the companion. On Linux, check `systemctl --user status outbreak-discord`. On Windows, run the `.exe` again; it reinstalls and starts.
 - **Port 8766 is in use.** Change `PORT` in `companion/server.py` and the two `127.0.0.1:8766` URLs in `extension/background.js` and `extension/manifest.json`, then reload the extension.
 - **Cover instead of stage art.** You're in a menu or lobby, or the scenario ID is unmapped. Check `scen=` in the log.
 - **Art not updating after re-uploading.** Discord caches assets by key, so upload changed art under a new key rather than replacing an existing one.
 - **After changing extension files.** Reload the extension at `chrome://extensions`, then reload the game tab.
 
 ## Privacy
+
+The full policy is in [PRIVACY.md](PRIVACY.md).
 
 - The extension only runs on `outbreakweb.com/file1` and `/file2`. It reads the scenario ID, room number, character name and room label through the site's own tracker, and sends them only to the companion on `127.0.0.1`.
 - Showing your online lobby room name is opt-in in the popup and off by default.

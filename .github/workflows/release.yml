@@ -1,0 +1,79 @@
+name: Release
+
+# Push a tag like v5.0.0 to build the Windows and Linux companions and the
+# Chrome extension zip, and publish them as a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyinstaller -r companion/requirements.txt
+      - name: Build OutbreakDiscordCompanion.exe
+        run: >
+          pyinstaller --onefile --noconsole --name OutbreakDiscordCompanion
+          --icon docs/icon.ico --paths companion companion/server.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/OutbreakDiscordCompanion.exe
+
+  linux:
+    # Older Ubuntu = older glibc, so the binary runs on more distros.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyinstaller -r companion/requirements.txt
+      - name: Build Linux binary
+        run: >
+          pyinstaller --onefile --name outbreak-discord-companion-linux-x86_64
+          --paths companion companion/server.py
+      - name: Smoke test
+        run: ./dist/outbreak-discord-companion-linux-x86_64 --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/outbreak-discord-companion-linux-x86_64
+
+  release:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Package extension and assemble files
+        run: |
+          VERSION=$(python3 -c "import json;print(json.load(open('extension/manifest.json'))['version'])")
+          mkdir -p out
+          (cd extension && zip -qr "../out/outbreak-discord-extension-v${VERSION}.zip" .)
+          cp artifacts/windows/OutbreakDiscordCompanion.exe out/
+          cp artifacts/linux/outbreak-discord-companion-linux-x86_64 out/
+          chmod +x out/outbreak-discord-companion-linux-x86_64
+          cp scripts/install.sh out/install-linux.sh
+          (cd out && sha256sum * > SHA256SUMS.txt)
+          ls -la out
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber
+          else
+            gh release create "$TAG" out/* --title "Outbreak Discord Rich Presence $TAG" --notes-file docs/RELEASE_NOTES.md
+          fi

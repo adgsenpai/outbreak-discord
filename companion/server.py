@@ -16,6 +16,9 @@ PORT = 8766
 TIMEOUT = 75
 GAME_URLS = {'file1': 'https://outbreakweb.com/file1/', 'file2': 'https://outbreakweb.com/file2/'}
 CONFIG = Path.home() / '.config' / 'outbreak-discord' / 'config.json'
+# Public "Resident Evil Outbreak" Discord application that already hosts all stage art.
+# Override with --app-id to use your own application.
+DEFAULT_APP_ID = '1571258544601170000'
 
 class State:
     def __init__(self, app_id, token, image):
@@ -116,9 +119,13 @@ def make_handler(state):
         def do_POST(self):
             if self.path != '/status':
                 self.send_error(404); return
+            # Browsers always send Origin on cross-origin POSTs and web pages can't forge a
+            # chrome-extension:// origin, so the extension is trusted without a token. Anything
+            # else (scripts, other tools) must still present the pairing token.
+            origin = self.headers.get('Origin', '')
             supplied = self.headers.get('X-Outbreak-Token', '')
-            if not secrets.compare_digest(supplied, state.token):
-                self.send_json(403, {'error':'Invalid pairing token'}); return
+            if not (origin.startswith('chrome-extension://') or (supplied and secrets.compare_digest(supplied, state.token))):
+                self.send_json(403, {'error':'Forbidden: not the Outbreak extension and no valid pairing token'}); return
             length = int(self.headers.get('Content-Length', '0'))
             if length < 1 or length > 8192:
                 self.send_json(400, {'error':'Invalid body length'}); return
@@ -159,10 +166,20 @@ def make_handler(state):
     return Handler
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--app-id', help='Discord Developer Portal Application ID')
+    parser = argparse.ArgumentParser(description='Outbreak Discord Rich Presence companion')
+    parser.add_argument('--app-id', help=f'Discord Application ID (default: the public "Resident Evil Outbreak" app, {DEFAULT_APP_ID})')
     parser.add_argument('--image', default=None, help='Optional Discord Rich Presence asset key, e.g. outbreak_cover')
+    parser.add_argument('--install', action='store_true', help='Install to this user account and start automatically at login')
+    parser.add_argument('--uninstall', action='store_true', help='Stop autostart and remove the installed copy')
     args = parser.parse_args()
+
+    import install
+    if args.uninstall:
+        install.uninstall(); return
+    if args.install or install.should_self_install():
+        install.install(); return
+
+    install.setup_logging(CONFIG.parent)
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     if CONFIG.exists():
         cfg = json.loads(CONFIG.read_text())
@@ -170,17 +187,20 @@ def main():
         cfg = {'token': secrets.token_urlsafe(32)}
     if args.app_id: cfg['app_id'] = args.app_id
     if args.image is not None: cfg['image'] = args.image
-    app_id = str(cfg.get('app_id', ''))
+    app_id = str(cfg.get('app_id') or DEFAULT_APP_ID)
     if not app_id.isdigit() or len(app_id) < 15:
-        parser.error('Provide --app-id YOUR_DISCORD_APPLICATION_ID on first run')
+        parser.error('--app-id must be a numeric Discord Application ID')
     CONFIG.write_text(json.dumps(cfg, indent=2) + '\n')
-    os.chmod(CONFIG, 0o600)
-    state = State(app_id, cfg['token'], cfg.get('image'))
+    try: os.chmod(CONFIG, 0o600)
+    except OSError: pass
+    try:
+        server = ThreadingHTTPServer(('127.0.0.1', PORT), make_handler(state := State(app_id, cfg['token'], cfg.get('image'))))
+    except OSError:
+        print(f'Port {PORT} is already in use — the companion is probably already running.', flush=True)
+        return
     threading.Thread(target=state.run, daemon=True).start()
-    print(f'Listening on http://127.0.0.1:{PORT}', flush=True)
-    print(f'Pairing token (keep private): {cfg["token"]}', flush=True)
-    print('Keep this process running. Ctrl+C to stop.', flush=True)
-    server = ThreadingHTTPServer(('127.0.0.1', PORT), make_handler(state))
+    print(f'Listening on http://127.0.0.1:{PORT} (Discord app {app_id})', flush=True)
+    print('The Chrome extension connects automatically. Keep this running. Ctrl+C to stop.', flush=True)
     try: server.serve_forever()
     except KeyboardInterrupt: print('\nStopping...')
     finally:
