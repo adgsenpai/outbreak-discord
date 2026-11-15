@@ -70,6 +70,10 @@ End of the Road (6) isn't in the wiki table; it was confirmed in-game. As a safe
 
 There's no Discord app to create and no token to paste: the companion uses the public "Resident Evil Outbreak" Discord app, which already has all the artwork.
 
+**Linux install demo**: recorded for real in a fresh Ubuntu 26.04 Docker container, with nothing preinstalled except `curl`:
+
+![Linux one-line install demo](docs/linux-install-demo.gif)
+
 Uninstall:
 - Windows: `%LOCALAPPDATA%\OutbreakDiscord\OutbreakDiscordCompanion.exe --uninstall`
 - Linux: `~/.local/bin/outbreak-discord-companion --uninstall`
