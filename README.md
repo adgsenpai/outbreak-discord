@@ -59,6 +59,8 @@ End of the Road (6) isn't in the wiki table; it was confirmed in-game. As a safe
 
 **[⬇ Download the latest release](https://github.com/adgsenpai/outbreak-discord/releases/latest)**
 
+> 🪟 **New to this? Follow the [step-by-step Windows guide](docs/WINDOWS.md)**. It covers which files to download, the SmartScreen warning, loading the extension, and fixes for common problems.
+
 ### 1. Companion app (one click)
 
 | | |
@@ -78,7 +80,7 @@ Download **`outbreak-discord-extension-v*.zip`** from the release and unzip it. 
 
 ### 3. Play
 
-Open <https://outbreakweb.com/file1/> or <https://outbreakweb.com/file2/> with the Discord **desktop** app running.
+Open <https://outbreakweb.com/file1/> or <https://outbreakweb.com/file2/> with the Discord **desktop** app running. Discord in a browser tab can't show game activity; you need the installed app from [discord.com/download](https://discord.com/download).
 
 ## Run from source
 
