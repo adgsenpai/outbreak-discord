@@ -189,6 +189,24 @@ WantedBy=default.target
     print(f'Installed and running as a {how}.\n{EXTENSION_HINT}\nUninstall: {cmd} --uninstall', flush=True)
 
 
+def _kill_other_linux_instances():
+    """SIGTERM every other running companion (pkill -f would also match this --uninstall process)."""
+    import signal
+    skip = {os.getpid(), os.getppid()}  # ourselves and, for a onefile build, our bootloader parent
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit() or int(entry.name) in skip:
+            continue
+        try:
+            argv = (entry / 'cmdline').read_bytes().split(b'\0')
+        except OSError:
+            continue
+        if argv and Path(argv[0].decode(errors='replace')).name == LINUX_BIN.name and b'--uninstall' not in argv:
+            try:
+                os.kill(int(entry.name), signal.SIGTERM)
+            except OSError:
+                pass
+
+
 def _uninstall_linux():
     if UNIT.exists():
         subprocess.run(['systemctl', '--user', 'disable', '--now', 'outbreak-discord.service'], capture_output=True)
@@ -196,7 +214,7 @@ def _uninstall_linux():
         subprocess.run(['systemctl', '--user', 'daemon-reload'], capture_output=True)
     if AUTOSTART.exists():
         AUTOSTART.unlink()
-        subprocess.run(['pkill', '-f', 'outbreak-discord-companion'], capture_output=True)
+        _kill_other_linux_instances()
     if LINUX_BIN.exists():
         LINUX_BIN.unlink()
     print('Outbreak Discord Rich Presence was uninstalled.', flush=True)
